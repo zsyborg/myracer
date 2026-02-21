@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer 2D Racing Game</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Racing+Sans+One&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/static/car1.png">
+</head>
+<body>
+    <div class="game-container">
+        <div class="title-wrapper">
+            <h1>🏎️ Multiplayer Racing Game</h1>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="game-canvas" width="800" height="600"></canvas>
+            <div id="game-status">Connecting...</div>
+        </div>
+        <div class="controls">
+            <div class="control-item">
+                <span class="key">↑</span>
+                <span class="key">↓</span>
+                <span class="key">←</span>
+                <span class="key">→</span>
+                <span class="key-label">or</span>
+                <span class="key special">W</span>
+                <span class="key special">A</span>
+                <span class="key special">S</span>
+                <span class="key special">D</span>
+                <span class="control-desc">to move</span>
+            </div>
+            <div class="player-info">
+                <span class="label">Player:</span>
+                <span id="player-id">-</span>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>

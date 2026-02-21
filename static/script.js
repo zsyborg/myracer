@@ -1,0 +1,730 @@
+// Socket.IO Client for Multiplayer Racing Game
+
+// Connect to the server
+const socket = io();
+
+// Game state
+let myPlayerId = null;
+let players = {};
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('game-status');
+const playerIdEl = document.getElementById('player-id');
+
+// Preload car images
+const carImages = {};
+const carImageNames = ['car1.png', 'car2.png', 'car3.png'];
+
+function preloadCarImages() {
+    carImageNames.forEach(name => {
+        const img = new Image();
+        img.src = '/static/' + name;
+        carImages[name] = img;
+    });
+}
+
+// Preload images when script loads
+preloadCarImages();
+
+// Player properties
+const PLAYER_SIZE = 24;
+const MOVE_SPEED = 4;
+
+// Track configuration - Circuit race track with 6 turns
+const TRACK = {
+    // Track waypoints forming a circuit with multiple turns
+    waypoints: [
+        { x: 620, y: 120 },  // Start/Finish - top right straight
+        { x: 400, y: 100 },  // Top middle - start of turn 1
+        { x: 200, y: 150 },  // Turn 1 apex
+        { x: 100, y: 250 },  // Turn 2 - left side
+        { x: 100, y: 400 },  // Turn 3 - bottom left
+        { x: 180, y: 500 },  // Turn 4 - bottom
+        { x: 350, y: 520 },  // Bottom middle
+        { x: 500, y: 480 },  // Turn 5 - chicane
+        { x: 600, y: 400 },  // Turn 5b
+        { x: 680, y: 300 },  // Turn 6 - final corner
+        { x: 720, y: 200 },  // Back to start
+    ],
+    // Track width (road width)
+    trackWidth: 70,
+    // Close the circuit
+    closed: true,
+};
+
+// Checkpoints around the track (must pass in order)
+// Positions are waypoint indices + progress (0-1) within segment
+const CHECKPOINTS = [
+    { id: 0, waypointIndex: 0, progress: 0.0, name: "Start/Finish", passed: false },
+    { id: 1, waypointIndex: 2, progress: 0.5, name: "Turn 1", passed: false },
+    { id: 2, waypointIndex: 4, progress: 0.5, name: "Turn 2-3", passed: false },
+    { id: 3, waypointIndex: 6, progress: 0.5, name: "Mid Track", passed: false },
+    { id: 4, waypointIndex: 9, progress: 0.5, name: "Final Corner", passed: false },
+];
+
+// Player state for racing
+let playerLaps = 0;
+let playerCheckpoint = 0;
+let raceStarted = false;
+const TOTAL_LAPS = 3;
+
+// Keyboard state
+const keys = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+};
+
+// ============================================================
+// Socket.IO Event Handlers
+// ============================================================
+
+// Connection established
+socket.on('connect', () => {
+    console.log('Connected to server with ID:', socket.id);
+    statusEl.textContent = 'Connected! Joining race...';
+    
+    // Join the game
+    socket.emit('join_game');
+});
+
+// Handle player_joined event
+socket.on('player_joined', (data) => {
+    if (data.all_players) {
+        // This is our initial join - we received all players
+        players = data.all_players;
+        // Use socket.id as our player ID (available after connection)
+        myPlayerId = socket.id;
+        
+        // Initialize race state for self
+        playerLaps = 0;
+        playerCheckpoint = 0;
+        raceStarted = true;
+        statusEl.textContent = '🏎️ Racing!';
+        statusEl.classList.add('racing');
+        playerIdEl.textContent = myPlayerId.substring(0, 8);
+        console.log('Joined race as:', myPlayerId);
+    } else if (data.player) {
+        // Another player joined
+        players[data.player.id] = data.player;
+        console.log('Player joined race:', data.player.id);
+    }
+});
+
+// Handle player_moved event
+socket.on('player_moved', (data) => {
+    if (data.player) {
+        // New player position from join
+        players[data.player.id] = data.player;
+    } else if (data.player_id && data.x !== undefined && data.y !== undefined) {
+        // Existing player moved
+        if (players[data.player_id]) {
+            players[data.player_id].x = data.x;
+            players[data.player_id].y = data.y;
+        }
+    }
+});
+
+// Handle player_left event
+socket.on('player_left', (data) => {
+    if (data.player_id && players[data.player_id]) {
+        delete players[data.player_id];
+        console.log('Player left:', data.player_id);
+    }
+});
+
+// ============================================================
+// Track Helper Functions
+// ============================================================
+
+// Get distance from point to line segment
+function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lengthSq = dx * dx + dy * dy;
+    
+    if (lengthSq === 0) {
+        // Segment is a point
+        return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
+    }
+    
+    // Calculate projection parameter
+    let t = ((px - x1) * dx + (py - y1) * dy) / lengthSq;
+    t = Math.max(0, Math.min(1, t));
+    
+    // Find closest point on segment
+    const closestX = x1 + t * dx;
+    const closestY = y1 + t * dy;
+    
+    return {
+        distance: Math.sqrt((px - closestX) * (px - closestX) + (py - closestY) * (py - closestY)),
+        closestX: closestX,
+        closestY: closestY
+    };
+}
+
+// Check if a point is on the track
+function isOnTrack(x, y) {
+    const halfWidth = TRACK.trackWidth / 2;
+    const waypoints = TRACK.waypoints;
+    
+    // Check distance to each segment of the track
+    for (let i = 0; i < waypoints.length; i++) {
+        const next = (i + 1) % waypoints.length;
+        const result = pointToSegmentDistance(
+            x, y,
+            waypoints[i].x, waypoints[i].y,
+            waypoints[next].x, waypoints[next].y
+        );
+        
+        if (result.distance <= halfWidth) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Get position along the track (0 to waypoints.length)
+function getTrackPosition(x, y) {
+    const halfWidth = TRACK.trackWidth / 2;
+    const waypoints = TRACK.waypoints;
+    let minDist = Infinity;
+    let bestPos = 0;
+    
+    for (let i = 0; i < waypoints.length; i++) {
+        const next = (i + 1) % waypoints.length;
+        const result = pointToSegmentDistance(
+            x, y,
+            waypoints[i].x, waypoints[i].y,
+            waypoints[next].x, waypoints[next].y
+        );
+        
+        if (result.distance < minDist) {
+            minDist = result.distance;
+            // Calculate position along track
+            const segLen = Math.sqrt(
+                Math.pow(waypoints[next].x - waypoints[i].x, 2) +
+                Math.pow(waypoints[next].y - waypoints[i].y, 2)
+            );
+            const t = segLen > 0 ? 
+                Math.sqrt(Math.pow(x - waypoints[i].x, 2) + Math.pow(y - waypoints[i].y, 2)) / segLen : 0;
+            bestPos = i + Math.min(1, Math.max(0, t));
+        }
+    }
+    
+    return bestPos;
+}
+
+// Get checkpoint for a position
+function getCheckpointAtPosition(x, y) {
+    return getTrackPosition(x, y) / TRACK.waypoints.length;
+}
+
+// Check if player crossed a checkpoint
+function checkCheckpoint(player) {
+    if (!raceStarted) return;
+    
+    const currentWaypoint = CHECKPOINTS[playerCheckpoint].waypointIndex;
+    const playerPos = getTrackPosition(player.x, player.y);
+    
+    // Check if player crossed the current checkpoint waypoint
+    const waypointX = TRACK.waypoints[currentWaypoint].x;
+    const waypointY = TRACK.waypoints[currentWaypoint].y;
+    const dist = Math.sqrt(Math.pow(player.x - waypointX, 2) + Math.pow(player.y - waypointY, 2));
+    
+    // If player is near the checkpoint waypoint, advance
+    if (dist < TRACK.trackWidth) {
+        playerCheckpoint++;
+        
+        // Check if lap completed
+        if (playerCheckpoint >= CHECKPOINTS.length) {
+            playerCheckpoint = 0;
+            playerLaps++;
+            
+            // Reset checkpoint passed state
+            CHECKPOINTS.forEach(cp => cp.passed = false);
+            
+            if (playerLaps >= TOTAL_LAPS) {
+                statusEl.textContent = `🏆 YOU WIN! 🏆`;
+                statusEl.classList.remove('racing');
+                statusEl.classList.add('winner');
+                raceStarted = false;
+            } else {
+                statusEl.textContent = `Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
+                statusEl.classList.add('racing');
+            }
+        } else {
+            console.log(`Checkpoint: ${CHECKPOINTS[playerCheckpoint].name}`);
+        }
+    }
+}
+
+// Constrain player position to track
+function constrainToTrack(player) {
+    const margin = PLAYER_SIZE / 2;
+    
+    // If not on track, find closest point on track and push there
+    if (!isOnTrack(player.x, player.y)) {
+        const halfWidth = TRACK.trackWidth / 2 - margin;
+        const waypoints = TRACK.waypoints;
+        let minDist = Infinity;
+        let bestX = player.x;
+        let bestY = player.y;
+        
+        // Find closest point on track
+        for (let i = 0; i < waypoints.length; i++) {
+            const next = (i + 1) % waypoints.length;
+            const result = pointToSegmentDistance(
+                player.x, player.y,
+                waypoints[i].x, waypoints[i].y,
+                waypoints[next].x, waypoints[next].y
+            );
+            
+            if (result.distance < minDist) {
+                minDist = result.distance;
+                // Push the point towards the track center
+                const pushDist = halfWidth;
+                const dx = result.closestX - player.x;
+                const dy = result.closestY - player.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len > 0) {
+                    bestX = result.closestX - (dx / len) * pushDist;
+                    bestY = result.closestY - (dy / len) * pushDist;
+                } else {
+                    bestX = result.closestX;
+                    bestY = result.closestY;
+                }
+            }
+        }
+        
+        player.x = bestX;
+        player.y = bestY;
+    }
+}
+
+// ============================================================
+// Game Logic
+// ============================================================
+
+// Handle keyboard input
+document.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+            keys.up = true;
+            break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+            keys.down = true;
+            break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+            keys.left = true;
+            break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+            keys.right = true;
+            break;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    switch(e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+            keys.up = false;
+            break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+            keys.down = false;
+            break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+            keys.left = false;
+            break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+            keys.right = false;
+            break;
+    }
+});
+
+// Update player position
+function updatePlayer() {
+    if (!myPlayerId || !players[myPlayerId]) return;
+    
+    const player = players[myPlayerId];
+    let moved = false;
+    
+    // Store old position for collision
+    const oldX = player.x;
+    const oldY = player.y;
+    
+    // Movement with track boundaries
+    if (keys.up && player.y > PLAYER_SIZE) {
+        player.y -= MOVE_SPEED;
+        moved = true;
+    }
+    if (keys.down && player.y < canvas.height - PLAYER_SIZE) {
+        player.y += MOVE_SPEED;
+        moved = true;
+    }
+    if (keys.left && player.x > PLAYER_SIZE) {
+        player.x -= MOVE_SPEED;
+        moved = true;
+    }
+    if (keys.right && player.x < canvas.width - PLAYER_SIZE) {
+        player.x += MOVE_SPEED;
+        moved = true;
+    }
+    
+    // Constrain to track
+    if (moved) {
+        constrainToTrack(player);
+        
+        // Check checkpoints
+        checkCheckpoint(player);
+        
+        // Send position update to server
+        socket.emit('player_move', {
+            x: player.x,
+            y: player.y
+        });
+    }
+}
+
+// Draw the race track
+function drawTrack() {
+    const waypoints = TRACK.waypoints;
+    const halfWidth = TRACK.trackWidth / 2;
+    
+    // Draw grass/background with gradient
+    const grassGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grassGradient.addColorStop(0, '#1a4d1a');
+    grassGradient.addColorStop(0.5, '#2d6b2d');
+    grassGradient.addColorStop(1, '#1a4d1a');
+    ctx.fillStyle = grassGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add grass texture pattern
+    ctx.fillStyle = 'rgba(30, 90, 30, 0.3)';
+    for (let i = 0; i < 200; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        ctx.fillRect(x, y, 2, 6);
+    }
+    
+    // Draw track border/curb (red-white alternating)
+    ctx.lineWidth = TRACK.trackWidth + 16;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    // Red curb
+    ctx.strokeStyle = '#cc2222';
+    ctx.beginPath();
+    ctx.moveTo(waypoints[0].x, waypoints[0].y);
+    for (let i = 1; i < waypoints.length; i++) {
+        ctx.lineTo(waypoints[i].x, waypoints[i].y);
+    }
+    if (TRACK.closed) {
+        ctx.closePath();
+    }
+    ctx.stroke();
+    
+    // Draw track surface (tarmac) - draw as thick lines between waypoints
+    ctx.strokeStyle = '#333333';
+    ctx.lineWidth = TRACK.trackWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    ctx.beginPath();
+    ctx.moveTo(waypoints[0].x, waypoints[0].y);
+    for (let i = 1; i < waypoints.length; i++) {
+        ctx.lineTo(waypoints[i].x, waypoints[i].y);
+    }
+    if (TRACK.closed) {
+        ctx.closePath();
+    }
+    ctx.stroke();
+    
+    // Add track centerline (dashed yellow)
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([20, 20]);
+    
+    ctx.beginPath();
+    ctx.moveTo(waypoints[0].x, waypoints[0].y);
+    for (let i = 1; i < waypoints.length; i++) {
+        ctx.lineTo(waypoints[i].x, waypoints[i].y);
+    }
+    if (TRACK.closed) {
+        ctx.closePath();
+    }
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Draw track edges (white lines)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([20, 10]);
+    
+    // Draw outer edge
+    ctx.beginPath();
+    for (let i = 0; i < waypoints.length; i++) {
+        const next = (i + 1) % waypoints.length;
+        const curr = waypoints[i];
+        const nextPt = waypoints[next];
+        
+        // Calculate perpendicular offset for outer edge
+        const dx = nextPt.x - curr.x;
+        const dy = nextPt.y - curr.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len === 0) continue;
+        
+        // Perpendicular vector (outer)
+        const px = -dy / len;
+        const py = dx / len;
+        
+        if (i === 0) {
+            ctx.moveTo(curr.x + px * halfWidth, curr.y + py * halfWidth);
+        } else {
+            ctx.lineTo(curr.x + px * halfWidth, curr.y + py * halfWidth);
+        }
+    }
+    if (TRACK.closed) ctx.closePath();
+    ctx.stroke();
+    
+    // Draw inner edge
+    ctx.beginPath();
+    for (let i = 0; i < waypoints.length; i++) {
+        const next = (i + 1) % waypoints.length;
+        const curr = waypoints[i];
+        const nextPt = waypoints[next];
+        
+        const dx = nextPt.x - curr.x;
+        const dy = nextPt.y - curr.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len === 0) continue;
+        
+        // Perpendicular vector (inner)
+        const px = dy / len;
+        const py = -dx / len;
+        
+        if (i === 0) {
+            ctx.moveTo(curr.x + px * halfWidth, curr.y + py * halfWidth);
+        } else {
+            ctx.lineTo(curr.x + px * halfWidth, curr.y + py * halfWidth);
+        }
+    }
+    if (TRACK.closed) ctx.closePath();
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Draw start/finish line at waypoint 0
+    const startWp = waypoints[0];
+    const nextWp = waypoints[1];
+    const startDx = nextWp.x - startWp.x;
+    const startDy = nextWp.y - startWp.y;
+    const startLen = Math.sqrt(startDx * startDx + startDy * startDy);
+    
+    if (startLen > 0) {
+        // Perpendicular to track direction
+        const perpX = -startDy / startLen;
+        const perpY = startDx / startLen;
+        
+        // Draw finish line base (black)
+        ctx.fillStyle = '#222222';
+        const checkSize = 10;
+        for (let offset = -halfWidth; offset < halfWidth; offset += checkSize) {
+            for (let i = 0; i < 2; i++) {
+                const sx = startWp.x + perpX * (offset + i * checkSize);
+                const sy = startWp.y + perpY * (offset + i * checkSize);
+                ctx.fillRect(sx - checkSize/2 - 2, sy - checkSize/2 - 2, checkSize + 4, checkSize + 4);
+            }
+        }
+        
+        // Checkered pattern for start line
+        ctx.fillStyle = '#ffffff';
+        for (let offset = -halfWidth; offset < halfWidth; offset += checkSize) {
+            for (let i = 0; i < 2; i++) {
+                const sx = startWp.x + perpX * (offset + i * checkSize);
+                const sy = startWp.y + perpY * (offset + i * checkSize);
+                if ((Math.floor(offset / checkSize) + i) % 2 === 0) {
+                    ctx.fillRect(sx - checkSize/2, sy - checkSize/2, checkSize, checkSize);
+                }
+            }
+        }
+    }
+    
+    // Draw checkpoint markers with glow effect
+    const checkpointColors = ['#ff3333', '#ffff33', '#33ff33', '#33ffff', '#ff33ff'];
+    for (let i = 0; i < CHECKPOINTS.length; i++) {
+        const cp = CHECKPOINTS[i];
+        const wp = waypoints[cp.waypointIndex];
+        
+        // Glow effect
+        const glowGradient = ctx.createRadialGradient(wp.x, wp.y, 5, wp.x, wp.y, 20);
+        glowGradient.addColorStop(0, checkpointColors[i % checkpointColors.length]);
+        glowGradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(wp.x, wp.y, 20, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Main checkpoint circle
+        ctx.fillStyle = checkpointColors[i % checkpointColors.length];
+        ctx.beginPath();
+        ctx.arc(wp.x, wp.y, 12, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Inner highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.beginPath();
+        ctx.arc(wp.x - 3, wp.y - 3, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Label
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(cp.id + 1, wp.x, wp.y - 18);
+    }
+}
+
+// Render the game
+function render() {
+    // Draw the track
+    drawTrack();
+    
+    // Draw lap counter at top center of canvas
+    if (raceStarted) {
+        const lapText = `Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
+        
+        // Draw background pill for lap counter
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.roundRect(canvas.width / 2 - 80, 15, 160, 40, 20);
+        ctx.fill();
+        
+        // Draw border
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw lap text
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 22px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(lapText, canvas.width / 2, 35);
+        ctx.shadowBlur = 0;
+        ctx.textBaseline = 'alphabetic';
+    }
+    
+    // Draw all players
+    for (const playerId in players) {
+        const player = players[playerId];
+        
+        // Draw player car image
+        ctx.save();
+        ctx.translate(player.x + PLAYER_SIZE/2, player.y + PLAYER_SIZE/2);
+        
+        // Rotate based on movement direction
+        if (keys.right) ctx.rotate(Math.PI / 2);
+        else if (keys.left) ctx.rotate(-Math.PI / 2);
+        else if (keys.up) ctx.rotate(0);
+        else if (keys.down) ctx.rotate(Math.PI);
+        
+        // Draw car glow/shadow effect
+        const glowGradient = ctx.createRadialGradient(0, 0, 5, 0, 0, PLAYER_SIZE);
+        glowGradient.addColorStop(0, 'rgba(255, 200, 0, 0.4)');
+        glowGradient.addColorStop(1, 'transparent');
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, PLAYER_SIZE, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw car image if loaded, otherwise fallback to colored rectangle
+        const carImage = carImages[player.car_image];
+        if (carImage && carImage.complete) {
+            ctx.drawImage(carImage, -PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE);
+        } else {
+            // Enhanced fallback: draw styled rectangle
+            const carGradient = ctx.createLinearGradient(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE/2, PLAYER_SIZE/2);
+            carGradient.addColorStop(0, '#ff4444');
+            carGradient.addColorStop(0.5, '#ff0000');
+            carGradient.addColorStop(1, '#cc0000');
+            ctx.fillStyle = carGradient;
+            ctx.fillRect(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE/2);
+            
+            // Car highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(-PLAYER_SIZE/2 + 2, -PLAYER_SIZE/2 + 2, PLAYER_SIZE - 4, 4);
+        }
+        
+        ctx.restore();
+        
+        // Draw player outline with glow
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE/2);
+        
+        // Highlight own player with enhanced effect
+        if (playerId === myPlayerId) {
+            // Glow effect for own player
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(player.x - 2, player.y - 2, PLAYER_SIZE + 4, PLAYER_SIZE/2 + 4);
+            ctx.shadowBlur = 0;
+            
+            // Draw lap counter with style
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 4;
+            ctx.fillText(`L${playerLaps + 1}`, player.x + PLAYER_SIZE + 5, player.y + 10);
+            ctx.shadowBlur = 0;
+        }
+    }
+}
+
+// Helper function to lighten a color
+function lightenColor(color, percent) {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return '#' + (0x1000000 + 
+        (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + 
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + 
+        (B < 255 ? B < 1 ? 0 : B : 255)
+    ).toString(16).slice(1);
+}
+
+// Game loop
+function gameLoop() {
+    updatePlayer();
+    render();
+    requestAnimationFrame(gameLoop);
+}
+
+// Start the game loop
+gameLoop();
