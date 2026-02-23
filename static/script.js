@@ -284,6 +284,8 @@ function checkCheckpoint(player) {
                 statusEl.classList.remove('racing');
                 statusEl.classList.add('winner');
                 raceStarted = false;
+                // Trigger the creative win display
+                showWinOverlay();
             } else {
                 statusEl.textContent = `Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
                 statusEl.classList.add('racing');
@@ -291,6 +293,129 @@ function checkCheckpoint(player) {
         } else {
             console.log(`Checkpoint: ${CHECKPOINTS[playerCheckpoint].name}`);
         }
+    }
+}
+
+// ============================================
+// Creative Win Overlay Functions
+// ============================================
+
+function showWinOverlay() {
+    const winOverlay = document.getElementById('win-overlay');
+    const winLapsEl = document.getElementById('win-laps');
+    
+    // Update lap count display
+    winLapsEl.textContent = TOTAL_LAPS;
+    
+    // Show the overlay
+    winOverlay.classList.add('active');
+    
+    // Create confetti
+    createConfetti();
+    
+    // Create star burst
+    createStarBurst();
+    
+    // Set up play again button
+    document.getElementById('play-again-btn').addEventListener('click', resetGame);
+}
+
+function createConfetti() {
+    const container = document.getElementById('confetti-container');
+    const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ff9f43', '#a29bfe', '#fd79a8'];
+    const shapes = ['square', 'circle'];
+    
+    // Create 100 confetti pieces
+    for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        
+        // Random properties
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const shape = shapes[Math.floor(Math.random() * shapes.length)];
+        const left = Math.random() * 100;
+        const delay = Math.random() * 0.5;
+        const duration = 2 + Math.random() * 2;
+        
+        confetti.style.left = left + '%';
+        confetti.style.background = color;
+        confetti.style.animationDelay = delay + 's';
+        confetti.style.animationDuration = duration + 's';
+        
+        if (shape === 'circle') {
+            confetti.style.borderRadius = '50%';
+        }
+        
+        container.appendChild(confetti);
+        
+        // Trigger animation
+        setTimeout(() => {
+            confetti.classList.add('active');
+        }, 10);
+    }
+    
+    // Clean up confetti after animation
+    setTimeout(() => {
+        container.innerHTML = '';
+    }, 5000);
+}
+
+function createStarBurst() {
+    const container = document.getElementById('win-stars');
+    const numStars = 20;
+    
+    for (let i = 0; i < numStars; i++) {
+        const star = document.createElement('div');
+        star.className = 'star-burst';
+        
+        // Calculate position in a circle
+        const angle = (i / numStars) * 360;
+        const distance = 150 + Math.random() * 100;
+        const radians = (angle * Math.PI) / 180;
+        
+        const x = Math.cos(radians) * distance;
+        const y = Math.sin(radians) * distance;
+        
+        star.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+        star.style.animationDelay = (Math.random() * 0.3) + 's';
+        
+        // Random colors between gold and orange
+        const hue = Math.random() > 0.5 ? '#ffd700' : '#ff8c00';
+        star.style.background = hue;
+        star.style.boxShadow = `0 0 10px ${hue}, 0 0 20px #ff6b00`;
+        
+        container.appendChild(star);
+    }
+}
+
+function resetGame() {
+    // Hide win overlay
+    const winOverlay = document.getElementById('win-overlay');
+    winOverlay.classList.remove('active');
+    
+    // Reset game state
+    playerLaps = 0;
+    playerCheckpoint = 0;
+    raceStarted = true;
+    
+    // Reset status
+    statusEl.textContent = '🏎️ Racing!';
+    statusEl.classList.remove('winner');
+    statusEl.classList.add('racing');
+    
+    // Reset checkpoints
+    CHECKPOINTS.forEach(cp => cp.passed = false);
+    
+    // Reset player position to start
+    if (myPlayerId && players[myPlayerId]) {
+        players[myPlayerId].x = TRACK.waypoints[0].x;
+        players[myPlayerId].y = TRACK.waypoints[0].y;
+        
+        // Send position to server
+        socket.emit('player_move', {
+            x: players[myPlayerId].x,
+            y: players[myPlayerId].y
+        });
     }
 }
 

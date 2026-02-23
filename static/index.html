@@ -58,5 +58,26 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/script.js"></script>
+    
+    <!-- Creative Win Overlay -->
+    <div id="win-overlay" class="win-overlay">
+        <div class="win-glow-ring"></div>
+        <div class="win-glow-ring" style="animation-delay: 0.5s;"></div>
+        <div class="win-glow-ring" style="animation-delay: 1s;"></div>
+        <div class="win-stars" id="win-stars"></div>
+        <div class="confetti-container" id="confetti-container"></div>
+        <div class="win-content">
+            <div class="win-trophy">🏆</div>
+            <h2 class="win-title">You Won!</h2>
+            <p class="win-subtitle">Champion!</p>
+            <div class="win-stats">
+                <p>Total Laps: <span id="win-laps">3</span></p>
+                <p>Race Complete!</p>
+            </div>
+            <button id="play-again-btn" class="play-again-btn">
+                Race Again 🏁
+            </button>
+        </div>
+    </div>
 </body>
 </html>
