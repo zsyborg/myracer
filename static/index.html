@@ -11,7 +11,23 @@
     <link rel="icon" type="image/png" href="/static/car1.png">
 </head>
 <body>
-    <div class="game-container">
+    <!-- Main Menu Overlay -->
+    <div id="main-menu" class="main-menu">
+        <div class="menu-content">
+            <div class="menu-title">🏎️</div>
+            <h1>Multiplayer Racing</h1>
+            <p class="menu-subtitle">2D Racing Game</p>
+            <button id="start-btn" class="start-button">
+                <span class="btn-text">START GAME</span>
+                <span class="btn-icon">🏁</span>
+            </button>
+            <div class="menu-controls">
+                <p><span class="key">↑</span><span class="key">↓</span><span class="key">←</span><span class="key">→</span> or <span class="key special">W</span><span class="key special">A</span><span class="key special">S</span><span class="key special">D</span> to move</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-container" style="display: none;">
         <div class="title-wrapper">
             <h1>🏎️ Multiplayer Racing Game</h1>
         </div>
@@ -37,6 +53,7 @@
                 <span id="player-id">-</span>
             </div>
         </div>
+    </div>
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>

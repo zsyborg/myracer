@@ -1,7 +1,9 @@
 // Socket.IO Client for Multiplayer Racing Game
 
-// Connect to the server
-const socket = io();
+// Get DOM elements
+const mainMenu = document.getElementById('main-menu');
+const startBtn = document.getElementById('start-btn');
+const gameContainer = document.querySelector('.game-container');
 
 // Game state
 let myPlayerId = null;
@@ -10,6 +12,33 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('game-status');
 const playerIdEl = document.getElementById('player-id');
+
+// Socket connection (initialized after start button click)
+let socket;
+
+// Start game when button is clicked
+startBtn.addEventListener('click', () => {
+    // Initialize socket connection
+    socket = io();
+    
+    // Set up socket event handlers
+    setupSocketHandlers();
+    
+    // Hide main menu with fade out
+    mainMenu.style.animation = 'menuFadeOut 0.3s ease-out forwards';
+    
+    setTimeout(() => {
+        mainMenu.style.display = 'none';
+        // Show game container
+        gameContainer.style.display = 'block';
+        gameContainer.style.animation = 'gameContainerFadeIn 0.5s ease-out';
+    }, 300);
+});
+
+// Socket.IO Event Handlers setup
+function setupSocketHandlers() {
+
+}
 
 // Preload car images
 const carImages = {};
@@ -76,63 +105,67 @@ const keys = {
     right: false
 };
 
-// ============================================================
-// Socket.IO Event Handlers
-// ============================================================
-
-// Connection established
-socket.on('connect', () => {
-    console.log('Connected to server with ID:', socket.id);
-    statusEl.textContent = 'Connected! Joining race...';
-    
-    // Join the game
-    socket.emit('join_game');
-});
-
-// Handle player_joined event
-socket.on('player_joined', (data) => {
-    if (data.all_players) {
-        // This is our initial join - we received all players
-        players = data.all_players;
-        // Use socket.id as our player ID (available after connection)
-        myPlayerId = socket.id;
+// Socket.IO Event Handlers setup
+function setupSocketHandlers() {
+    // Connection established
+    socket.on('connect', () => {
+        console.log('Connected to server with ID:', socket.id);
+        statusEl.textContent = 'Connected! Joining race...';
         
-        // Initialize race state for self
-        playerLaps = 0;
-        playerCheckpoint = 0;
-        raceStarted = true;
-        statusEl.textContent = '🏎️ Racing!';
-        statusEl.classList.add('racing');
-        playerIdEl.textContent = myPlayerId.substring(0, 8);
-        console.log('Joined race as:', myPlayerId);
-    } else if (data.player) {
-        // Another player joined
-        players[data.player.id] = data.player;
-        console.log('Player joined race:', data.player.id);
-    }
-});
+        // Join the game
+        socket.emit('join_game');
+    });
 
-// Handle player_moved event
-socket.on('player_moved', (data) => {
-    if (data.player) {
-        // New player position from join
-        players[data.player.id] = data.player;
-    } else if (data.player_id && data.x !== undefined && data.y !== undefined) {
-        // Existing player moved
-        if (players[data.player_id]) {
-            players[data.player_id].x = data.x;
-            players[data.player_id].y = data.y;
+    // Handle player_joined event
+    socket.on('player_joined', (data) => {
+        if (data.all_players) {
+            // This is our initial join - we received all players
+            players = data.all_players;
+            // Use socket.id as our player ID (available after connection)
+            myPlayerId = socket.id;
+            
+            // Initialize race state for self
+            playerLaps = 0;
+            playerCheckpoint = 0;
+            raceStarted = true;
+            statusEl.textContent = '🏎️ Racing!';
+            statusEl.classList.add('racing');
+            playerIdEl.textContent = myPlayerId.substring(0, 8);
+            console.log('Joined race as:', myPlayerId);
+        } else if (data.player) {
+            // Another player joined
+            players[data.player.id] = data.player;
+            console.log('Player joined race:', data.player.id);
         }
-    }
-});
+    });
 
-// Handle player_left event
-socket.on('player_left', (data) => {
-    if (data.player_id && players[data.player_id]) {
-        delete players[data.player_id];
-        console.log('Player left:', data.player_id);
-    }
-});
+    // Handle player_moved event
+    socket.on('player_moved', (data) => {
+        if (data.player) {
+            // New player position from join
+            players[data.player.id] = data.player;
+        } else if (data.player_id && data.x !== undefined && data.y !== undefined) {
+            // Existing player moved
+            if (players[data.player_id]) {
+                players[data.player_id].x = data.x;
+                players[data.player_id].y = data.y;
+            }
+        }
+    });
+
+    // Handle player_left event
+    socket.on('player_left', (data) => {
+        if (data.player_id && players[data.player_id]) {
+            delete players[data.player_id];
+            console.log('Player left:', data.player_id);
+        }
+    });
+
+    // Start the game loop once socket is connected
+    socket.on('connect', () => {
+        gameLoop();
+    });
+}
 
 // ============================================================
 // Track Helper Functions
@@ -725,6 +758,3 @@ function gameLoop() {
     render();
     requestAnimationFrame(gameLoop);
 }
-
-// Start the game loop
-gameLoop();
