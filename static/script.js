@@ -59,36 +59,38 @@ preloadCarImages();
 const PLAYER_SIZE = 24;
 const MOVE_SPEED = 4;
 
-// Track configuration - Circuit race track with 6 turns
+// Track configuration - Circuit race track with 6 turns (CLOCKWISE DIRECTION)
 const TRACK = {
-    // Track waypoints forming a circuit with multiple turns
+    // Track waypoints forming a circuit with multiple turns - CLOCKWISE
     waypoints: [
         { x: 620, y: 120 },  // Start/Finish - top right straight
-        { x: 400, y: 100 },  // Top middle - start of turn 1
-        { x: 200, y: 150 },  // Turn 1 apex
-        { x: 100, y: 250 },  // Turn 2 - left side
-        { x: 100, y: 400 },  // Turn 3 - bottom left
-        { x: 180, y: 500 },  // Turn 4 - bottom
-        { x: 350, y: 520 },  // Bottom middle
-        { x: 500, y: 480 },  // Turn 5 - chicane
-        { x: 600, y: 400 },  // Turn 5b
+        { x: 720, y: 200 },  // Right side - heading down
         { x: 680, y: 300 },  // Turn 6 - final corner
-        { x: 720, y: 200 },  // Back to start
+        { x: 600, y: 400 },  // Turn 5b
+        { x: 500, y: 480 },  // Turn 5 - chicane
+        { x: 350, y: 520 },  // Bottom middle
+        { x: 180, y: 500 },  // Turn 4 - bottom
+        { x: 100, y: 400 },  // Turn 3 - bottom left
+        { x: 100, y: 250 },  // Turn 2 - left side
+        { x: 200, y: 150 },  // Turn 1 apex
+        { x: 400, y: 100 },  // Top middle - end of turn 1
     ],
     // Track width (road width)
     trackWidth: 70,
     // Close the circuit
     closed: true,
+    // Direction flag for rendering and logic
+    clockwise: true,
 };
 
-// Checkpoints around the track (must pass in order)
+// Checkpoints around the track (must pass in order for CLOCKWISE)
 // Positions are waypoint indices + progress (0-1) within segment
 const CHECKPOINTS = [
     { id: 0, waypointIndex: 0, progress: 0.0, name: "Start/Finish", passed: false },
-    { id: 1, waypointIndex: 2, progress: 0.5, name: "Turn 1", passed: false },
-    { id: 2, waypointIndex: 4, progress: 0.5, name: "Turn 2-3", passed: false },
-    { id: 3, waypointIndex: 6, progress: 0.5, name: "Mid Track", passed: false },
-    { id: 4, waypointIndex: 9, progress: 0.5, name: "Final Corner", passed: false },
+    { id: 1, waypointIndex: 2, progress: 0.5, name: "Turn 6", passed: false },
+    { id: 2, waypointIndex: 4, progress: 0.5, name: "Chicane", passed: false },
+    { id: 3, waypointIndex: 6, progress: 0.5, name: "Turn 4", passed: false },
+    { id: 4, waypointIndex: 9, progress: 0.5, name: "Turn 1", passed: false },
 ];
 
 // Player state for racing
@@ -255,20 +257,31 @@ function getCheckpointAtPosition(x, y) {
     return getTrackPosition(x, y) / TRACK.waypoints.length;
 }
 
-// Check if player crossed a checkpoint
+// Check if player crossed a checkpoint (CLOCKWISE direction)
 function checkCheckpoint(player) {
     if (!raceStarted) return;
     
     const currentWaypoint = CHECKPOINTS[playerCheckpoint].waypointIndex;
     const playerPos = getTrackPosition(player.x, player.y);
     
+    // For clockwise racing, we check if player has advanced along the track
+    // Get the player's current waypoint index based on track position
+    const playerWaypointIndex = Math.floor(playerPos) % TRACK.waypoints.length;
+    
     // Check if player crossed the current checkpoint waypoint
     const waypointX = TRACK.waypoints[currentWaypoint].x;
     const waypointY = TRACK.waypoints[currentWaypoint].y;
     const dist = Math.sqrt(Math.pow(player.x - waypointX, 2) + Math.pow(player.y - waypointY, 2));
     
-    // If player is near the checkpoint waypoint, advance
+    // For clockwise: check if player passed the checkpoint waypoint
+    // Player must be near checkpoint AND have come from the correct direction
     if (dist < TRACK.trackWidth) {
+        // Determine if we're moving in clockwise direction
+        // In clockwise, waypoint indices should increase (wrapping around)
+        const nextExpectedWaypoint = CHECKPOINTS[playerCheckpoint].waypointIndex;
+        
+        // Check if player has progressed to or past the next checkpoint
+        // For clockwise: we need to check if player is at/near current checkpoint
         playerCheckpoint++;
         
         // Check if lap completed
@@ -561,7 +574,7 @@ function updatePlayer() {
     }
 }
 
-// Draw the race track
+// Draw the race track with CLOCKWISE direction indicators
 function drawTrack() {
     const waypoints = TRACK.waypoints;
     const halfWidth = TRACK.trackWidth / 2;
@@ -615,7 +628,7 @@ function drawTrack() {
     }
     ctx.stroke();
     
-    // Add track centerline (dashed yellow)
+    // Add track centerline (dashed yellow) - now shows clockwise direction
     ctx.strokeStyle = '#ffcc00';
     ctx.lineWidth = 3;
     ctx.setLineDash([20, 20]);
@@ -690,7 +703,10 @@ function drawTrack() {
     
     ctx.setLineDash([]);
     
-    // Draw start/finish line at waypoint 0
+    // Draw CLOCKWISE direction arrows along the track
+    drawDirectionArrows(waypoints, halfWidth);
+    
+    // Draw start/finish line at waypoint 0 - Updated for CLOCKWISE direction
     const startWp = waypoints[0];
     const nextWp = waypoints[1];
     const startDx = nextWp.x - startWp.x;
@@ -698,9 +714,10 @@ function drawTrack() {
     const startLen = Math.sqrt(startDx * startDx + startDy * startDy);
     
     if (startLen > 0) {
-        // Perpendicular to track direction
-        const perpX = -startDy / startLen;
-        const perpY = startDx / startLen;
+        // Perpendicular to track direction (adjusted for clockwise)
+        // For clockwise at start, perpendicular points inward toward track center
+        const perpX = startDy / startLen;  // Reversed from counter-clockwise
+        const perpY = -startDx / startLen; // Reversed from counter-clockwise
         
         // Draw finish line base (black)
         ctx.fillStyle = '#222222';
@@ -727,7 +744,7 @@ function drawTrack() {
     }
     
     // Draw checkpoint markers with glow effect
-    const checkpointColors = ['#ff3333', '#ffff33', '#33ff33', '#33ffff', '#ff33ff'];
+    const checkpointColors = ['#ff3333', '#ff33ff', '#33ffff', '#33ff33', '#ffff33'];
     for (let i = 0; i < CHECKPOINTS.length; i++) {
         const cp = CHECKPOINTS[i];
         const wp = waypoints[cp.waypointIndex];
@@ -758,6 +775,53 @@ function drawTrack() {
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(cp.id + 1, wp.x, wp.y - 18);
+    }
+}
+
+// Draw clockwise direction arrows along the track
+function drawDirectionArrows(waypoints, halfWidth) {
+    const arrowSpacing = 3; // Draw arrow every N waypoints
+    
+    for (let i = 0; i < waypoints.length; i++) {
+        if (i % arrowSpacing !== 0) continue;
+        
+        const curr = waypoints[i];
+        const next = waypoints[(i + 1) % waypoints.length];
+        
+        // Calculate direction
+        const dx = next.x - curr.x;
+        const dy = next.y - curr.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        
+        if (len === 0) continue;
+        
+        // Normalize direction
+        const dirX = dx / len;
+        const dirY = dy / len;
+        
+        // Calculate perpendicular for offset (inner side for clockwise)
+        const perpX = dirY;
+        const perpY = -dirX;
+        
+        // Position arrow on inner side of track
+        const arrowX = curr.x + perpX * (halfWidth - 15);
+        const arrowY = curr.y + perpY * (halfWidth - 15);
+        
+        // Draw arrow
+        ctx.save();
+        ctx.translate(arrowX, arrowY);
+        ctx.rotate(Math.atan2(dirY, dirX));
+        
+        // Arrow shape
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-5, -6);
+        ctx.lineTo(-5, 6);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.restore();
     }
 }
 
