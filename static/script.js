@@ -825,19 +825,17 @@ function drawDirectionArrows(waypoints, halfWidth) {
     }
 }
 
-// Render the game
+// Render the game with CLOCKWISE direction indicator
 function render() {
     // Draw the track
     drawTrack();
     
-    // Draw lap counter at top center of canvas
+    // Draw lap counter and direction indicator at top center of canvas
     if (raceStarted) {
-        const lapText = `Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
-        
         // Draw background pill for lap counter
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.beginPath();
-        ctx.roundRect(canvas.width / 2 - 80, 15, 160, 40, 20);
+        ctx.roundRect(canvas.width / 2 - 100, 15, 200, 40, 20);
         ctx.fill();
         
         // Draw border
@@ -846,13 +844,19 @@ function render() {
         ctx.stroke();
         
         // Draw lap text
+        const lapText = `Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
         ctx.fillStyle = '#ffd700';
         ctx.font = 'bold 22px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = '#000';
         ctx.shadowBlur = 4;
-        ctx.fillText(lapText, canvas.width / 2, 35);
+        ctx.fillText(lapText, canvas.width / 2 - 40, 35);
+        
+        // Draw clockwise arrow indicator
+        ctx.fillStyle = '#00ff00';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText('↻', canvas.width / 2 + 50, 35);
         ctx.shadowBlur = 0;
         ctx.textBaseline = 'alphabetic';
     }
@@ -865,7 +869,7 @@ function render() {
         ctx.save();
         ctx.translate(player.x + PLAYER_SIZE/2, player.y + PLAYER_SIZE/2);
         
-        // Rotate based on movement direction
+        // Rotate based on movement direction (adjusted for clockwise track)
         if (keys.right) ctx.rotate(Math.PI / 2);
         else if (keys.left) ctx.rotate(-Math.PI / 2);
         else if (keys.up) ctx.rotate(0);
@@ -925,6 +929,144 @@ function render() {
             ctx.shadowBlur = 0;
         }
     }
+}
+
+// ============================================================
+// Navigation and AI Pathfinding for CLOCKWISE Racing
+// ============================================================
+
+// Get the next waypoint for AI/player guidance (CLOCKWISE)
+function getNextWaypoint(currentIndex) {
+    return (currentIndex + 1) % TRACK.waypoints.length;
+}
+
+// Get optimal racing line offset for clockwise direction
+// This creates a path that's slightly inside on corners for better lap times
+function getOptimalRacingLine(waypointIndex) {
+    const wp = TRACK.waypoints[waypointIndex];
+    const nextWp = TRACK.waypoints[(waypointIndex + 1) % TRACK.waypoints.length];
+    
+    // Calculate direction vector
+    const dx = nextWp.x - wp.x;
+    const dy = nextWp.y - wp.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    
+    if (len === 0) return { x: wp.x, y: wp.y };
+    
+    // For clockwise racing, optimal line is inside (right side of track on left turns)
+    // This is the opposite of counter-clockwise
+    const dirX = dx / len;
+    const dirY = dy / len;
+    
+    // Perpendicular inward for clockwise
+    const perpX = dirY;   // Reversed from counter-clockwise
+    const perpY = -dirX;  // Reversed from counter-clockwise
+    
+    // Offset for optimal racing line (slightly inside)
+    const offset = TRACK.trackWidth * 0.25;
+    
+    return {
+        x: wp.x + perpX * offset,
+        y: wp.y + perpY * offset
+    };
+}
+
+// Get braking point for a corner (CLOCKWISE optimized)
+function getBrakingPoint(cornerWaypointIndex, currentSpeed) {
+    const corner = TRACK.waypoints[cornerWaypointIndex];
+    const prevWaypoint = TRACK.waypoints[(cornerWaypointIndex - 1 + TRACK.waypoints.length) % TRACK.waypoints.length];
+    
+    // Calculate distance to corner
+    const dist = Math.sqrt(Math.pow(corner.x - prevWaypoint.x, 2) + Math.pow(corner.y - prevWaypoint.y, 2));
+    
+    // Braking distance scales with speed (simplified physics)
+    // For clockwise, braking zones are adjusted for right-hand corners
+    const brakingFactor = 0.4;
+    const brakingDist = currentSpeed * brakingFactor * 15;
+    
+    // Position at which to start braking
+    const ratio = Math.min(1, brakingDist / dist);
+    
+    return {
+        x: corner.x - (corner.x - prevWaypoint.x) * ratio,
+        y: corner.y - (corner.y - prevWaypoint.y) * ratio,
+        distance: brakingDist
+    };
+}
+
+// Calculate corner entry/exit angles for clockwise racing
+function getCornerAngles(waypointIndex) {
+    const prev = TRACK.waypoints[(waypointIndex - 1 + TRACK.waypoints.length) % TRACK.waypoints.length];
+    const curr = TRACK.waypoints[waypointIndex];
+    const next = TRACK.waypoints[(waypointIndex + 1) % TRACK.waypoints.length];
+    
+    // Entry angle (direction from previous to current)
+    const entryDx = curr.x - prev.x;
+    const entryDy = curr.y - prev.y;
+    const entryAngle = Math.atan2(entryDy, entryDx);
+    
+    // Exit angle (direction from current to next)
+    const exitDx = next.x - curr.x;
+    const exitDy = next.y - curr.y;
+    const exitAngle = Math.atan2(exitDy, exitDx);
+    
+    // Corner angle (difference between exit and entry)
+    // For clockwise, this tells us if it's a left or right turn
+    let cornerAngle = exitAngle - entryAngle;
+    
+    // Normalize to -PI to PI
+    while (cornerAngle > Math.PI) cornerAngle -= 2 * Math.PI;
+    while (cornerAngle < -Math.PI) cornerAngle += 2 * Math.PI;
+    
+    return {
+        entry: entryAngle,
+        exit: exitAngle,
+        corner: cornerAngle,
+        isLeftTurn: cornerAngle > 0,  // Positive = left turn in standard math, but on screen Y is inverted
+        isRightTurn: cornerAngle < 0  // Negative = right turn in standard math
+    };
+}
+
+// Get recommended speed for each track segment (CLOCKWISE)
+function getRecommendedSpeed(waypointIndex) {
+    const angles = getCornerAngles(waypointIndex);
+    const cornerSeverity = Math.abs(angles.corner);
+    
+    // Base speed
+    let speed = MOVE_SPEED * 2.5;
+    
+    // Reduce speed for sharper corners
+    // For clockwise, left turns (positive corner angle on screen) need different handling
+    if (cornerSeverity > Math.PI / 3) {
+        speed *= 0.4; // Hairpin
+    } else if (cornerSeverity > Math.PI / 4) {
+        speed *= 0.6; // Medium corner
+    } else if (cornerSeverity > Math.PI / 6) {
+        speed *= 0.8; // Mild corner
+    }
+    
+    return speed;
+}
+
+// Calculate total track distance for clockwise lap
+function getTrackDistance() {
+    let totalDist = 0;
+    const waypoints = TRACK.waypoints;
+    
+    for (let i = 0; i < waypoints.length; i++) {
+        const next = (i + 1) % waypoints.length;
+        const dx = waypoints[next].x - waypoints[i].x;
+        const dy = waypoints[next].y - waypoints[i].y;
+        totalDist += Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    return totalDist;
+}
+
+// Get progress along track as percentage (0-100)
+function getTrackProgress(x, y) {
+    const position = getTrackPosition(x, y);
+    return (position / TRACK.waypoints.length) * 100;
 }
 
 // Helper function to lighten a color

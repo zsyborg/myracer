@@ -903,5 +903,37 @@ h1 {
 }
 
 .title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
     margin-bottom: 15px;
+}
+
+.title-wrapper h1 {
+    font-family: 'Racing Sans One', cursive;
+    font-size: 28px;
+    color: #ffd700;
+    text-shadow: 2px 2px 4px #000, 0 0 20px rgba(255, 215, 0, 0.3);
+    margin: 0;
+    letter-spacing: 2px;
+}
+
+.direction-indicator {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #00ff00;
+    background: linear-gradient(135deg, #004d00 0%, #006600 100%);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 2px solid #00ff00;
+    text-shadow: 0 0 10px #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 15px rgba(0, 255, 0, 0.4); }
+    50% { box-shadow: 0 0 25px rgba(0, 255, 0, 0.7); }
 }
