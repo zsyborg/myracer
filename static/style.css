@@ -1,4 +1,4 @@
-/* Main Menu Styles */
+e]]]e/* Main Menu Styles */
 .main-menu {
     position: fixed;
     top: 0;
@@ -685,6 +685,48 @@ h1 {
     transform: translateY(20px);
 }
 
+/* Next Level Button - Gold/Orange gradient */
+.next-level-btn {
+    display: inline-block;
+    margin-top: 30px;
+    margin-left: 15px;
+    padding: 15px 50px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #0a0a1a;
+    background: linear-gradient(145deg, #ffd700 0%, #ffb800 50%, #ffd700 100%);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 
+        0 6px 0 #b8860b,
+        0 10px 20px rgba(255, 215, 0, 0.4),
+        0 0 40px rgba(255, 215, 0, 0.2);
+    transition: all 0.2s ease;
+    animation: winButtonPulse 2s ease-in-out infinite, winButtonSlide 0.5s ease-out 1.4s forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.next-level-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 9px 0 #b8860b,
+        0 15px 30px rgba(255, 215, 0, 0.5),
+        0 0 60px rgba(255, 215, 0, 0.3);
+}
+
+.next-level-btn:active {
+    transform: translateY(3px) scale(0.98);
+    box-shadow: 
+        0 3px 0 #b8860b,
+        0 6px 15px rgba(255, 215, 0, 0.4),
+        0 0 30px rgba(255, 215, 0, 0.2);
+}
+
 @keyframes winButtonPulse {
     0%, 100% {
         box-shadow: 
@@ -931,6 +973,31 @@ h1 {
     text-shadow: 0 0 10px #00ff00;
     box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
     animation: pulse-green 2s infinite;
+}
+
+/* Level indicator styling */
+.level-indicator {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffd700;
+    background: linear-gradient(135deg, #4d4d00 0%, #666600 100%);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 2px solid #ffd700;
+    text-shadow: 0 0 10px #ffd700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+    animation: pulse-gold 2s infinite;
+}
+
+.level-indicator span {
+    color: #fff;
+    font-weight: 900;
+}
+
+@keyframes pulse-gold {
+    0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
+    50% { box-shadow: 0 0 25px rgba(255, 215, 0, 0.7); }
 }
 
 @keyframes pulse-green {

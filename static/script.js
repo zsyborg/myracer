@@ -60,38 +60,254 @@ const PLAYER_SIZE = 24;
 const MOVE_SPEED = 4;
 
 // Track configuration - Circuit race track with 6 turns (CLOCKWISE DIRECTION)
-const TRACK = {
-    // Track waypoints forming a circuit with multiple turns - CLOCKWISE
-    waypoints: [
-        { x: 620, y: 120 },  // Start/Finish - top right straight
-        { x: 720, y: 200 },  // Right side - heading down
-        { x: 680, y: 300 },  // Turn 6 - final corner
-        { x: 600, y: 400 },  // Turn 5b
-        { x: 500, y: 480 },  // Turn 5 - chicane
-        { x: 350, y: 520 },  // Bottom middle
-        { x: 180, y: 500 },  // Turn 4 - bottom
-        { x: 100, y: 400 },  // Turn 3 - bottom left
-        { x: 100, y: 250 },  // Turn 2 - left side
-        { x: 200, y: 150 },  // Turn 1 apex
-        { x: 400, y: 100 },  // Top middle - end of turn 1
-    ],
-    // Track width (road width)
-    trackWidth: 70,
-    // Close the circuit
-    closed: true,
-    // Direction flag for rendering and logic
-    clockwise: true,
+// Level 1: Beginner Oval Track
+const TRACKS = {
+    1: {
+        name: "Speedway Oval",
+        waypoints: [
+            { x: 200, y: 150 },  // Start/Finish - top left
+            { x: 400, y: 100 },  // Top middle
+            { x: 600, y: 150 },  // Top right
+            { x: 700, y: 300 },  // Right curve
+            { x: 650, y: 450 },  // Bottom right
+            { x: 400, y: 500 },  // Bottom middle
+            { x: 150, y: 450 },  // Bottom left
+            { x: 100, y: 300 },  // Left curve
+        ],
+        trackWidth: 80,
+        closed: true,
+        clockwise: true,
+    },
+    // Level 2: Figure-8 Track
+    2: {
+        name: "Figure Eight",
+        waypoints: [
+            { x: 250, y: 200 },  // Start/Finish - top left of figure-8
+            { x: 400, y: 150 },  // Top middle
+            { x: 550, y: 200 },  // Top right
+            { x: 500, y: 300 },  // Right crossover
+            { x: 550, y: 400 },  // Bottom right
+            { x: 400, y: 450 },  // Bottom middle
+            { x: 250, y: 400 },  // Bottom left
+            { x: 300, y: 300 },  // Left crossover
+        ],
+        trackWidth: 65,
+        closed: true,
+        clockwise: true,
+    },
+    // Level 3: Technical Chicane Track
+    3: {
+        name: "Technical Circuit",
+        waypoints: [
+            { x: 650, y: 100 },  // Start/Finish - top right
+            { x: 550, y: 120 },  // Top right corner
+            { x: 480, y: 180 },  // Chicane 1
+            { x: 400, y: 150 },  // Chicane 1 apex
+            { x: 320, y: 200 },  // Chicane 1 exit
+            { x: 200, y: 250 },  // Turn 2
+            { x: 120, y: 350 },  // Turn 3
+            { x: 150, y: 450 },  // Bottom left
+            { x: 250, y: 500 },  // Bottom middle left
+            { x: 400, y: 480 },  // Chicane 2
+            { x: 450, y: 420 },  // Chicane 2 apex
+            { x: 500, y: 380 },  // Chicane 2 exit
+            { x: 600, y: 400 },  // Bottom right
+            { x: 700, y: 350 },  // Right curve
+            { x: 720, y: 200 },  // Top right curve
+        ],
+        trackWidth: 60,
+        closed: true,
+        clockwise: true,
+    },
+    // Level 4: Complex Circuit with Hairpins
+    4: {
+        name: "Grand Prix Circuit",
+        waypoints: [
+            { x: 620, y: 80 },   // Start/Finish - top right
+            { x: 500, y: 60 },   // Top straight start
+            { x: 350, y: 80 },   // Turn 1 (hairpin)
+            { x: 250, y: 150 },  // Turn 1 apex
+            { x: 200, y: 250 },  // Turn 1 exit
+            { x: 180, y: 350 },  // Turn 2
+            { x: 220, y: 420 },  // Turn 2 exit
+            { x: 350, y: 450 },  // Bottom straight
+            { x: 500, y: 420 },  // Turn 3 (chicane)
+            { x: 520, y: 360 },  // Chicane apex
+            { x: 480, y: 320 },  // Chicane exit
+            { x: 400, y: 280 },  // Mid track
+            { x: 300, y: 250 },  // Turn 4
+            { x: 250, y: 180 },  // Turn 4 apex
+            { x: 300, y: 120 },  // Back straight
+            { x: 450, y: 100 },  // Final turn
+        ],
+        trackWidth: 55,
+        closed: true,
+        clockwise: true,
+    },
+    // Level 5: Ultimate Expert Track
+    5: {
+        name: "Championship Circuit",
+        waypoints: [
+            { x: 700, y: 80 },   // Start/Finish - far right
+            { x: 580, y: 60 },   // Top right
+            { x: 450, y: 80 },   // Turn 1 approach
+            { x: 350, y: 120 },  // Hairpin 1
+            { x: 280, y: 180 },  // Hairpin 1 apex
+            { x: 250, y: 260 },  // Hairpin 1 exit
+            { x: 150, y: 320 },  // Left hairpin
+            { x: 100, y: 400 },  // Left hairpin apex
+            { x: 150, y: 480 },  // Bottom left
+            { x: 300, y: 520 },  // Bottom chicane start
+            { x: 350, y: 480 },  // Chicane apex
+            { x: 400, y: 440 },  // Chicane exit
+            { x: 500, y: 460 },  // Bottom right approach
+            { x: 600, y: 420 },  // Right hairpin
+            { x: 650, y: 350 },  // Right hairpin apex
+            { x: 620, y: 280 },  // Mid right
+            { x: 550, y: 220 },  // Final chicane
+            { x: 480, y: 250 },  // Final chicane apex
+            { x: 420, y: 200 },  // Final chicane exit
+            { x: 500, y: 150 },  // Back straight
+            { x: 600, y: 120 },  // Final approach
+        ],
+        trackWidth: 50,
+        closed: true,
+        clockwise: true,
+    }
 };
 
-// Checkpoints around the track (must pass in order for CLOCKWISE)
-// Positions are waypoint indices + progress (0-1) within segment
-const CHECKPOINTS = [
-    { id: 0, waypointIndex: 0, progress: 0.0, name: "Start/Finish", passed: false },
-    { id: 1, waypointIndex: 2, progress: 0.5, name: "Turn 6", passed: false },
-    { id: 2, waypointIndex: 4, progress: 0.5, name: "Chicane", passed: false },
-    { id: 3, waypointIndex: 6, progress: 0.5, name: "Turn 4", passed: false },
-    { id: 4, waypointIndex: 9, progress: 0.5, name: "Turn 1", passed: false },
-];
+// Current track (active)
+let currentTrack = TRACKS[1];
+
+// Level state
+let currentLevel = 1;
+const totalLevels = 5;
+
+// Get checkpoints for current track
+function getCheckpointsForTrack(track) {
+    const numCheckpoints = Math.min(5, Math.floor(track.waypoints.length / 2));
+    const checkpoints = [];
+    
+    for (let i = 0; i < numCheckpoints; i++) {
+        const wpIndex = Math.floor((i + 1) * track.waypoints.length / (numCheckpoints + 1));
+        checkpoints.push({
+            id: i,
+            waypointIndex: wpIndex % track.waypoints.length,
+            progress: 0.5,
+            name: `Checkpoint ${i + 1}`,
+            passed: false
+        });
+    }
+    
+    return checkpoints;
+}
+
+// Initialize checkpoints for level 1
+let CHECKPOINTS = getCheckpointsForTrack(TRACKS[1]);
+
+// Alias for backward compatibility
+const TRACK = currentTrack;
+
+// Load a specific level/track
+function loadLevel(level) {
+    if (level < 1 || level > totalLevels) {
+        console.log("All levels completed!");
+        return false;
+    }
+    
+    currentLevel = level;
+    currentTrack = TRACKS[level];
+    CHECKPOINTS = getCheckpointsForTrack(currentTrack);
+    
+    // Update HTML level display
+    const levelEl = document.getElementById('current-level');
+    if (levelEl) {
+        levelEl.textContent = currentLevel;
+    }
+    
+    // Update direction indicator with track name
+    const titleWrapper = document.querySelector('.title-wrapper');
+    if (titleWrapper) {
+        const dirIndicator = titleWrapper.querySelector('.direction-indicator');
+        if (dirIndicator) {
+            dirIndicator.textContent = `↻ ${currentTrack.name}`;
+        }
+    }
+    
+    console.log(`Loaded Level ${level}: ${currentTrack.name}`);
+    return true;
+}
+
+// Advance to next level
+function advanceToNextLevel() {
+    if (currentLevel < totalLevels) {
+        loadLevel(currentLevel + 1);
+        resetGameForNewLevel();
+    } else {
+        // All levels completed - show championship win
+        showChampionshipWin();
+    }
+}
+
+// Reset game for new level
+function resetGameForNewLevel() {
+    // Hide win overlay
+    const winOverlay = document.getElementById('win-overlay');
+    winOverlay.classList.remove('active');
+    
+    // Reset game state
+    playerLaps = 0;
+    playerCheckpoint = 0;
+    raceStarted = true;
+    
+    // Reset status
+    statusEl.textContent = `🏎️ Level ${currentLevel}: ${currentTrack.name}`;
+    statusEl.classList.remove('winner');
+    statusEl.classList.add('racing');
+    
+    // Reset checkpoints
+    CHECKPOINTS.forEach(cp => cp.passed = false);
+    
+    // Reset player position to start
+    if (myPlayerId && players[myPlayerId]) {
+        players[myPlayerId].x = currentTrack.waypoints[0].x;
+        players[myPlayerId].y = currentTrack.waypoints[0].y;
+        
+        // Send position to server
+        socket.emit('player_move', {
+            x: players[myPlayerId].x,
+            y: players[myPlayerId].y
+        });
+    }
+}
+
+// Show championship win screen
+function showChampionshipWin() {
+    const winOverlay = document.getElementById('win-overlay');
+    const winTitle = winOverlay.querySelector('.win-title');
+    const winSubtitle = winOverlay.querySelector('.win-subtitle');
+    const winStats = winOverlay.querySelector('.win-stats');
+    const nextLevelBtn = document.getElementById('next-level-btn');
+    
+    // Update win content
+    winTitle.textContent = '🏆 CHAMPION! 🏆';
+    winSubtitle.textContent = 'All Tracks Completed!';
+    winStats.innerHTML = `<p>Total Levels: ${totalLevels}</p><p>You are the Racing Champion!</p>`;
+    
+    // Hide next level button
+    nextLevelBtn.style.display = 'none';
+    
+    // Show overlay
+    winOverlay.classList.add('active');
+    createConfetti();
+    createStarBurst();
+    
+    // Reset to level 1 for replay
+    document.getElementById('play-again-btn').onclick = function() {
+        loadLevel(1);
+        resetGameForNewLevel();
+    };
+}
 
 // Player state for racing
 let playerLaps = 0;
@@ -201,8 +417,8 @@ function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
 
 // Check if a point is on the track
 function isOnTrack(x, y) {
-    const halfWidth = TRACK.trackWidth / 2;
-    const waypoints = TRACK.waypoints;
+    const halfWidth = currentTrack.trackWidth / 2;
+    const waypoints = currentTrack.waypoints;
     
     // Check distance to each segment of the track
     for (let i = 0; i < waypoints.length; i++) {
@@ -223,8 +439,8 @@ function isOnTrack(x, y) {
 
 // Get position along the track (0 to waypoints.length)
 function getTrackPosition(x, y) {
-    const halfWidth = TRACK.trackWidth / 2;
-    const waypoints = TRACK.waypoints;
+    const halfWidth = currentTrack.trackWidth / 2;
+    const waypoints = currentTrack.waypoints;
     let minDist = Infinity;
     let bestPos = 0;
     
@@ -254,7 +470,7 @@ function getTrackPosition(x, y) {
 
 // Get checkpoint for a position
 function getCheckpointAtPosition(x, y) {
-    return getTrackPosition(x, y) / TRACK.waypoints.length;
+    return getTrackPosition(x, y) / currentTrack.waypoints.length;
 }
 
 // Check if player crossed a checkpoint (CLOCKWISE direction)
@@ -266,16 +482,16 @@ function checkCheckpoint(player) {
     
     // For clockwise racing, we check if player has advanced along the track
     // Get the player's current waypoint index based on track position
-    const playerWaypointIndex = Math.floor(playerPos) % TRACK.waypoints.length;
+    const playerWaypointIndex = Math.floor(playerPos) % currentTrack.waypoints.length;
     
     // Check if player crossed the current checkpoint waypoint
-    const waypointX = TRACK.waypoints[currentWaypoint].x;
-    const waypointY = TRACK.waypoints[currentWaypoint].y;
+    const waypointX = currentTrack.waypoints[currentWaypoint].x;
+    const waypointY = currentTrack.waypoints[currentWaypoint].y;
     const dist = Math.sqrt(Math.pow(player.x - waypointX, 2) + Math.pow(player.y - waypointY, 2));
     
     // For clockwise: check if player passed the checkpoint waypoint
     // Player must be near checkpoint AND have come from the correct direction
-    if (dist < TRACK.trackWidth) {
+    if (dist < currentTrack.trackWidth) {
         // Determine if we're moving in clockwise direction
         // In clockwise, waypoint indices should increase (wrapping around)
         const nextExpectedWaypoint = CHECKPOINTS[playerCheckpoint].waypointIndex;
@@ -316,6 +532,9 @@ function checkCheckpoint(player) {
 function showWinOverlay() {
     const winOverlay = document.getElementById('win-overlay');
     const winLapsEl = document.getElementById('win-laps');
+    const winTitle = winOverlay.querySelector('.win-title');
+    const winSubtitle = winOverlay.querySelector('.win-subtitle');
+    const nextLevelBtn = document.getElementById('next-level-btn');
     
     // Update lap count display
     winLapsEl.textContent = TOTAL_LAPS;
@@ -329,8 +548,20 @@ function showWinOverlay() {
     // Create star burst
     createStarBurst();
     
-    // Set up play again button
+    // Set up play again button (restart same level)
     document.getElementById('play-again-btn').addEventListener('click', resetGame);
+    
+    // Show Next Level button if not on final level
+    if (currentLevel < totalLevels) {
+        nextLevelBtn.style.display = 'inline-block';
+        nextLevelBtn.onclick = advanceToNextLevel;
+        winTitle.textContent = '🏆 Level Complete! 🏆';
+        winSubtitle.textContent = currentTrack.name + ' Conquered!';
+    } else {
+        nextLevelBtn.style.display = 'none';
+        winTitle.textContent = '🏆 YOU WIN! 🏆';
+        winSubtitle.textContent = 'Champion!';
+    }
 }
 
 function createConfetti() {
@@ -421,8 +652,8 @@ function resetGame() {
     
     // Reset player position to start
     if (myPlayerId && players[myPlayerId]) {
-        players[myPlayerId].x = TRACK.waypoints[0].x;
-        players[myPlayerId].y = TRACK.waypoints[0].y;
+        players[myPlayerId].x = currentTrack.waypoints[0].x;
+        players[myPlayerId].y = currentTrack.waypoints[0].y;
         
         // Send position to server
         socket.emit('player_move', {
@@ -438,8 +669,8 @@ function constrainToTrack(player) {
     
     // If not on track, find closest point on track and push there
     if (!isOnTrack(player.x, player.y)) {
-        const halfWidth = TRACK.trackWidth / 2 - margin;
-        const waypoints = TRACK.waypoints;
+        const halfWidth = currentTrack.trackWidth / 2 - margin;
+        const waypoints = currentTrack.waypoints;
         let minDist = Infinity;
         let bestX = player.x;
         let bestY = player.y;
@@ -576,8 +807,8 @@ function updatePlayer() {
 
 // Draw the race track with CLOCKWISE direction indicators
 function drawTrack() {
-    const waypoints = TRACK.waypoints;
-    const halfWidth = TRACK.trackWidth / 2;
+    const waypoints = currentTrack.waypoints;
+    const halfWidth = currentTrack.trackWidth / 2;
     
     // Draw grass/background with gradient
     const grassGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
@@ -614,7 +845,7 @@ function drawTrack() {
     
     // Draw track surface (tarmac) - draw as thick lines between waypoints
     ctx.strokeStyle = '#333333';
-    ctx.lineWidth = TRACK.trackWidth;
+    ctx.lineWidth = currentTrack.trackWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
@@ -623,7 +854,7 @@ function drawTrack() {
     for (let i = 1; i < waypoints.length; i++) {
         ctx.lineTo(waypoints[i].x, waypoints[i].y);
     }
-    if (TRACK.closed) {
+    if (currentTrack.closed) {
         ctx.closePath();
     }
     ctx.stroke();
@@ -638,7 +869,7 @@ function drawTrack() {
     for (let i = 1; i < waypoints.length; i++) {
         ctx.lineTo(waypoints[i].x, waypoints[i].y);
     }
-    if (TRACK.closed) {
+    if (currentTrack.closed) {
         ctx.closePath();
     }
     ctx.stroke();
@@ -673,7 +904,7 @@ function drawTrack() {
             ctx.lineTo(curr.x + px * halfWidth, curr.y + py * halfWidth);
         }
     }
-    if (TRACK.closed) ctx.closePath();
+    if (currentTrack.closed) ctx.closePath();
     ctx.stroke();
     
     // Draw inner edge
@@ -698,7 +929,7 @@ function drawTrack() {
             ctx.lineTo(curr.x + px * halfWidth, curr.y + py * halfWidth);
         }
     }
-    if (TRACK.closed) ctx.closePath();
+    if (currentTrack.closed) ctx.closePath();
     ctx.stroke();
     
     ctx.setLineDash([]);
@@ -835,7 +1066,7 @@ function render() {
         // Draw background pill for lap counter
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.beginPath();
-        ctx.roundRect(canvas.width / 2 - 100, 15, 200, 40, 20);
+        ctx.roundRect(canvas.width / 2 - 120, 15, 240, 40, 20);
         ctx.fill();
         
         // Draw border
@@ -844,19 +1075,14 @@ function render() {
         ctx.stroke();
         
         // Draw lap text
-        const lapText = `Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
+        const lapText = `L${currentLevel}:${currentTrack.name} | Lap ${playerLaps + 1}/${TOTAL_LAPS}`;
         ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 22px Arial';
+        ctx.font = 'bold 14px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = '#000';
         ctx.shadowBlur = 4;
-        ctx.fillText(lapText, canvas.width / 2 - 40, 35);
-        
-        // Draw clockwise arrow indicator
-        ctx.fillStyle = '#00ff00';
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText('↻', canvas.width / 2 + 50, 35);
+        ctx.fillText(lapText, canvas.width / 2, 35);
         ctx.shadowBlur = 0;
         ctx.textBaseline = 'alphabetic';
     }
@@ -937,14 +1163,14 @@ function render() {
 
 // Get the next waypoint for AI/player guidance (CLOCKWISE)
 function getNextWaypoint(currentIndex) {
-    return (currentIndex + 1) % TRACK.waypoints.length;
+    return (currentIndex + 1) % currentTrack.waypoints.length;
 }
 
 // Get optimal racing line offset for clockwise direction
 // This creates a path that's slightly inside on corners for better lap times
 function getOptimalRacingLine(waypointIndex) {
-    const wp = TRACK.waypoints[waypointIndex];
-    const nextWp = TRACK.waypoints[(waypointIndex + 1) % TRACK.waypoints.length];
+    const wp = currentTrack.waypoints[waypointIndex];
+    const nextWp = currentTrack.waypoints[(waypointIndex + 1) % currentTrack.waypoints.length];
     
     // Calculate direction vector
     const dx = nextWp.x - wp.x;
@@ -963,7 +1189,7 @@ function getOptimalRacingLine(waypointIndex) {
     const perpY = -dirX;  // Reversed from counter-clockwise
     
     // Offset for optimal racing line (slightly inside)
-    const offset = TRACK.trackWidth * 0.25;
+    const offset = currentTrack.trackWidth * 0.25;
     
     return {
         x: wp.x + perpX * offset,
@@ -973,8 +1199,8 @@ function getOptimalRacingLine(waypointIndex) {
 
 // Get braking point for a corner (CLOCKWISE optimized)
 function getBrakingPoint(cornerWaypointIndex, currentSpeed) {
-    const corner = TRACK.waypoints[cornerWaypointIndex];
-    const prevWaypoint = TRACK.waypoints[(cornerWaypointIndex - 1 + TRACK.waypoints.length) % TRACK.waypoints.length];
+    const corner = currentTrack.waypoints[cornerWaypointIndex];
+    const prevWaypoint = currentTrack.waypoints[(cornerWaypointIndex - 1 + currentTrack.waypoints.length) % currentTrack.waypoints.length];
     
     // Calculate distance to corner
     const dist = Math.sqrt(Math.pow(corner.x - prevWaypoint.x, 2) + Math.pow(corner.y - prevWaypoint.y, 2));
@@ -996,9 +1222,9 @@ function getBrakingPoint(cornerWaypointIndex, currentSpeed) {
 
 // Calculate corner entry/exit angles for clockwise racing
 function getCornerAngles(waypointIndex) {
-    const prev = TRACK.waypoints[(waypointIndex - 1 + TRACK.waypoints.length) % TRACK.waypoints.length];
-    const curr = TRACK.waypoints[waypointIndex];
-    const next = TRACK.waypoints[(waypointIndex + 1) % TRACK.waypoints.length];
+    const prev = currentTrack.waypoints[(waypointIndex - 1 + currentTrack.waypoints.length) % currentTrack.waypoints.length];
+    const curr = currentTrack.waypoints[waypointIndex];
+    const next = currentTrack.waypoints[(waypointIndex + 1) % currentTrack.waypoints.length];
     
     // Entry angle (direction from previous to current)
     const entryDx = curr.x - prev.x;
@@ -1051,7 +1277,7 @@ function getRecommendedSpeed(waypointIndex) {
 // Calculate total track distance for clockwise lap
 function getTrackDistance() {
     let totalDist = 0;
-    const waypoints = TRACK.waypoints;
+    const waypoints = currentTrack.waypoints;
     
     for (let i = 0; i < waypoints.length; i++) {
         const next = (i + 1) % waypoints.length;
@@ -1066,7 +1292,7 @@ function getTrackDistance() {
 // Get progress along track as percentage (0-100)
 function getTrackProgress(x, y) {
     const position = getTrackPosition(x, y);
-    return (position / TRACK.waypoints.length) * 100;
+    return (position / currentTrack.waypoints.length) * 100;
 }
 
 // Helper function to lighten a color
